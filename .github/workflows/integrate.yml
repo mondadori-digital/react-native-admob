@@ -1,0 +1,39 @@
+name: Integrate React Native AdMob
+on: push
+jobs:
+  integrate:
+    name: Create React Native App and integrate React Native Admob
+    runs-on: macOS-10.14
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '10.x'
+      - name: Install dependencies
+        run: brew install xmlstarlet
+      - name: Install React Native CLI
+        run: sudo npm install -g react-native-cli
+      - name: Initialize React Native application
+        run: react-native init ReactNativeAdMobExample
+      - name: Add react-native-admob
+        working-directory: ./ReactNativeAdMobExample
+        run: yarn add react-native-admob@next
+      - name: Configure Android Project
+        working-directory: ./ReactNativeAdMobExample
+        run: |
+          xml ed -L \
+            -s /manifest/application -t elem -n meta-data \
+            -i /manifest/application/meta-data -t attr -n android:name -v "com.google.android.gms.ads.APPLICATION_ID" \
+            -i /manifest/application/meta-data -t attr -n android:value -v "ca-app-pub-3940256099942544~1458002511" \
+            ./android/app/src/main/AndroidManifest.xml
+      - name: Configure iOS Project
+        working-directory: ./ReactNativeAdMobExample
+        run: |
+          /usr/libexec/PlistBuddy -c 'Add :GADApplicationIdentifier string ca-app-pub-3940256099942544~1458002511' \
+            ios/AdMobExample/Info.plist
+      - name: Update App.js
+        working-directory: ./ReactNativeAdMobExample
+        run: cp ../.github/workflows/fixtures/App.js ./App.js
+      - name: Run iOS
+        working-directory: ./ReactNativeAdMobExample
+        run: react-native run-ios
