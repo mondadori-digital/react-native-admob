@@ -1,4 +1,4 @@
-#if __has_include(<React/RCTView.h>)
+#if __has_include(<React/RCTComponent.h>)
 #import <React/RCTView.h>
 #else
 #import "RCTView.h"
@@ -12,6 +12,8 @@
 
 @property (nonatomic, copy) NSArray *validAdSizes;
 @property (nonatomic, copy) NSArray *testDevices;
+
+@property (nonatomic) BOOL npa;
 
 @property (nonatomic, copy) RCTBubblingEventBlock onSizeChange;
 @property (nonatomic, copy) RCTBubblingEventBlock onAppEvent;

@@ -34,6 +34,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
     AdSize[] validAdSizes;
     String adUnitID;
     AdSize adSize;
+    Boolean npa;
 
     public ReactPublisherAdView(final Context context) {
         super(context);
@@ -145,6 +146,9 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
         AdSize[] adSizesArray = adSizes.toArray(new AdSize[adSizes.size()]);
         this.adView.setAdSizes(adSizesArray);
 
+        Bundle extras = new Bundle();
+        extras.putString("npa", npa);
+
         PublisherAdRequest.Builder adRequestBuilder = new PublisherAdRequest.Builder();
         if (testDevices != null) {
             for (int i = 0; i < testDevices.length; i++) {
@@ -155,6 +159,10 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
                 adRequestBuilder.addTestDevice(testDevice);
             }
         }
+        if (npa) {
+            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras)
+        }
+
         PublisherAdRequest adRequest = adRequestBuilder.build();
         this.adView.loadAd(adRequest);
     }
@@ -171,6 +179,10 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
 
     public void setTestDevices(String[] testDevices) {
         this.testDevices = testDevices;
+    }
+
+    public void setNpa(Boolean npa) {
+        this.npa = npa;
     }
 
     public void setAdSize(AdSize adSize) {
@@ -198,6 +210,7 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     public static final String PROP_VALID_AD_SIZES = "validAdSizes";
     public static final String PROP_AD_UNIT_ID = "adUnitID";
     public static final String PROP_TEST_DEVICES = "testDevices";
+    public static final String PROP_NPA = "npa";
 
     public static final String EVENT_SIZE_CHANGE = "onSizeChange";
     public static final String EVENT_AD_LOADED = "onAdLoaded";
@@ -274,6 +287,11 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
         ReadableNativeArray nativeArray = (ReadableNativeArray)testDevices;
         ArrayList<Object> list = nativeArray.toArrayList();
         view.setTestDevices(list.toArray(new String[list.size()]));
+    }
+
+    @ReactProp(name = PROP_NPA)
+    public void setPropNpa(final ReactPublisherAdView view, final Boolean npa) {
+        view.setNpa(npa);
     }
 
     private AdSize getAdSizeFromString(String adSize) {

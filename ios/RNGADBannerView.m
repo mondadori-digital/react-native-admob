@@ -57,6 +57,14 @@
         }
     }
     GADRequest *request = [GADRequest request];
+    
+    // adv consent
+    if (self.npa) {
+        GADExtras *extras = [[GADExtras alloc] init];
+        extras.additionalParameters = @{@"npa": @"1"};
+        [request registerAdNetworkExtras:extras];
+    }
+    
     request.testDevices = _testDevices;
     [_bannerView loadRequest:request];
 }

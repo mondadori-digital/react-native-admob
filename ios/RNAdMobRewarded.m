@@ -23,6 +23,7 @@ static NSString *const kEventVideoCompleted = @"rewardedVideoAdVideoCompleted";
     RCTPromiseResolveBlock _requestAdResolve;
     RCTPromiseRejectBlock _requestAdReject;
     BOOL hasListeners;
+    BOOL _npa;
 }
 
 - (dispatch_queue_t)methodQueue
@@ -62,6 +63,11 @@ RCT_EXPORT_METHOD(setTestDevices:(NSArray *)testDevices)
     _testDevices = RNAdMobProcessTestDevices(testDevices, kGADSimulatorID);
 }
 
+RCT_EXPORT_METHOD(setNpa:(BOOL *)npa)
+{
+    _npa = npa;
+}
+
 RCT_EXPORT_METHOD(requestAd:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     _requestAdResolve = resolve;
@@ -69,6 +75,12 @@ RCT_EXPORT_METHOD(requestAd:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 
     [GADRewardBasedVideoAd sharedInstance].delegate = self;
     GADRequest *request = [GADRequest request];
+    // adv consent
+    if (_npa) {
+        GADExtras *extras = [[GADExtras alloc] init];
+        extras.additionalParameters = @{@"npa": @"1"};
+        [request registerAdNetworkExtras:extras];
+    }
     request.testDevices = _testDevices;
     [[GADRewardBasedVideoAd sharedInstance] loadRequest:request
                                            withAdUnitID:_adUnitID];

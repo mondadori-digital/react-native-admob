@@ -32,6 +32,7 @@ class ReactAdView extends ReactViewGroup {
     String adUnitID;
     String[] testDevices;
     AdSize adSize;
+    Boolean npa;
 
     public ReactAdView(final Context context) {
         super(context);
@@ -125,6 +126,10 @@ class ReactAdView extends ReactViewGroup {
     }
 
     public void loadBanner() {
+        
+        Bundle extras = new Bundle();
+        extras.putString("npa", npa);
+
         AdRequest.Builder adRequestBuilder = new AdRequest.Builder();
         if (testDevices != null) {
             for (int i = 0; i < testDevices.length; i++) {
@@ -134,6 +139,9 @@ class ReactAdView extends ReactViewGroup {
                 }
                 adRequestBuilder.addTestDevice(testDevice);
             }
+        }
+        if (npa) {
+            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras)
         }
         AdRequest adRequest = adRequestBuilder.build();
         this.adView.loadAd(adRequest);
@@ -153,6 +161,10 @@ class ReactAdView extends ReactViewGroup {
         this.testDevices = testDevices;
     }
 
+    public void setNpa(Boolean npa) {
+        this.npa = npa;
+    }
+
     public void setAdSize(AdSize adSize) {
         this.adSize = adSize;
         this.adView.setAdSize(adSize);
@@ -166,6 +178,7 @@ public class RNAdMobBannerViewManager extends ViewGroupManager<ReactAdView> {
     public static final String PROP_AD_SIZE = "adSize";
     public static final String PROP_AD_UNIT_ID = "adUnitID";
     public static final String PROP_TEST_DEVICES = "testDevices";
+    public static final String PROP_NPA = "npa";
 
     public static final String EVENT_SIZE_CHANGE = "onSizeChange";
     public static final String EVENT_AD_LOADED = "onAdLoaded";
@@ -226,6 +239,11 @@ public class RNAdMobBannerViewManager extends ViewGroupManager<ReactAdView> {
         ReadableNativeArray nativeArray = (ReadableNativeArray)testDevices;
         ArrayList<Object> list = nativeArray.toArrayList();
         view.setTestDevices(list.toArray(new String[list.size()]));
+    }
+
+    @ReactProp(name = PROP_NPA)
+    public void setPropNpa(final ReactAdView view, final Boolean npa) {
+        view.setNpa(npa);
     }
 
     private AdSize getAdSizeFromString(String adSize) {
