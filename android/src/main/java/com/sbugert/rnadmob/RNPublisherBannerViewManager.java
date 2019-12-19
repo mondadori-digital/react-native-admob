@@ -3,6 +3,7 @@ package com.sbugert.rnadmob;
 import android.content.Context;
 import android.support.annotation.Nullable;
 import android.view.View;
+import android.os.Bundle;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
@@ -21,6 +22,7 @@ import com.google.android.gms.ads.doubleclick.AppEventListener;
 import com.google.android.gms.ads.doubleclick.PublisherAdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.doubleclick.PublisherAdView;
+import com.google.ads.mediation.admob.AdMobAdapter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,7 +36,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
     AdSize[] validAdSizes;
     String adUnitID;
     AdSize adSize;
-    Boolean npa;
+    boolean npa;
 
     public ReactPublisherAdView(final Context context) {
         super(context);
@@ -146,9 +148,6 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
         AdSize[] adSizesArray = adSizes.toArray(new AdSize[adSizes.size()]);
         this.adView.setAdSizes(adSizesArray);
 
-        Bundle extras = new Bundle();
-        extras.putString("npa", npa);
-
         PublisherAdRequest.Builder adRequestBuilder = new PublisherAdRequest.Builder();
         if (testDevices != null) {
             for (int i = 0; i < testDevices.length; i++) {
@@ -160,7 +159,9 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
             }
         }
         if (npa) {
-            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras)
+            Bundle extras = new Bundle();
+            extras.putString("npa", "1");
+            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
         }
 
         PublisherAdRequest adRequest = adRequestBuilder.build();
@@ -181,7 +182,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
         this.testDevices = testDevices;
     }
 
-    public void setNpa(Boolean npa) {
+    public void setNpa(boolean npa) {
         this.npa = npa;
     }
 
@@ -290,7 +291,7 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     }
 
     @ReactProp(name = PROP_NPA)
-    public void setPropNpa(final ReactPublisherAdView view, final Boolean npa) {
+    public void setPropNpa(final ReactPublisherAdView view, final boolean npa) {
         view.setNpa(npa);
     }
 

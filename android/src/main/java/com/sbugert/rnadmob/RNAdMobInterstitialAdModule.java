@@ -3,6 +3,7 @@ package com.sbugert.rnadmob;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.annotation.Nullable;
+import android.os.Bundle;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -18,6 +19,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.InterstitialAd;
+import com.google.ads.mediation.admob.AdMobAdapter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +37,7 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
 
     InterstitialAd mInterstitialAd;
     String[] testDevices;
+    boolean npa;
 
     private Promise mRequestAdPromise;
 
@@ -125,6 +128,11 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void setNpa(boolean npa) {
+        this.npa = npa;
+    }
+
+    @ReactMethod
     public void requestAd(final Promise promise) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
@@ -142,6 +150,11 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
                             }
                             adRequestBuilder.addTestDevice(testDevice);
                         }
+                    }
+                    if (npa) {
+                        Bundle extras = new Bundle();
+                        extras.putString("npa", "1");
+                        adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
                     }
                     AdRequest adRequest = adRequestBuilder.build();
                     mInterstitialAd.loadAd(adRequest);

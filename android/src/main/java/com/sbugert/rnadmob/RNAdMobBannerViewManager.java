@@ -3,6 +3,7 @@ package com.sbugert.rnadmob;
 import android.content.Context;
 import android.support.annotation.Nullable;
 import android.view.View;
+import android.os.Bundle;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
@@ -20,6 +21,7 @@ import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.AdView;
+import com.google.ads.mediation.admob.AdMobAdapter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,7 +34,7 @@ class ReactAdView extends ReactViewGroup {
     String adUnitID;
     String[] testDevices;
     AdSize adSize;
-    Boolean npa;
+    boolean npa;
 
     public ReactAdView(final Context context) {
         super(context);
@@ -127,9 +129,6 @@ class ReactAdView extends ReactViewGroup {
 
     public void loadBanner() {
         
-        Bundle extras = new Bundle();
-        extras.putString("npa", npa);
-
         AdRequest.Builder adRequestBuilder = new AdRequest.Builder();
         if (testDevices != null) {
             for (int i = 0; i < testDevices.length; i++) {
@@ -141,7 +140,9 @@ class ReactAdView extends ReactViewGroup {
             }
         }
         if (npa) {
-            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras)
+            Bundle extras = new Bundle();
+            extras.putString("npa", "1");
+            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
         }
         AdRequest adRequest = adRequestBuilder.build();
         this.adView.loadAd(adRequest);
@@ -161,7 +162,7 @@ class ReactAdView extends ReactViewGroup {
         this.testDevices = testDevices;
     }
 
-    public void setNpa(Boolean npa) {
+    public void setNpa(boolean npa) {
         this.npa = npa;
     }
 
@@ -242,7 +243,7 @@ public class RNAdMobBannerViewManager extends ViewGroupManager<ReactAdView> {
     }
 
     @ReactProp(name = PROP_NPA)
-    public void setPropNpa(final ReactAdView view, final Boolean npa) {
+    public void setPropNpa(final ReactAdView view, final boolean npa) {
         view.setNpa(npa);
     }
 
