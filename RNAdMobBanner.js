@@ -1,13 +1,13 @@
-import React, { Component } from "react";
+import React, { Component } from 'react';
 import {
   requireNativeComponent,
   UIManager,
   findNodeHandle,
   ViewPropTypes,
-} from "react-native";
-import { string, func, arrayOf, bool } from "prop-types";
+} from 'react-native';
+import { string, func, arrayOf, bool } from 'prop-types';
 
-import { createErrorFromErrorData } from "./utils";
+import { createErrorFromErrorData } from './utils';
 
 class AdMobBanner extends Component {
   constructor() {
@@ -23,10 +23,16 @@ class AdMobBanner extends Component {
     this.loadBanner();
   }
 
+  componentDidUpdate(prevProps, prevState) {
+    if (prevProps.adUnitID !== this.props.adUnitID) {
+      this.loadBanner();
+    }
+  }
+
   loadBanner() {
     UIManager.dispatchViewManagerCommand(
       findNodeHandle(this._bannerView),
-      UIManager.getViewManagerConfig("RNGADBannerView").Commands.loadBanner,
+      UIManager.getViewManagerConfig('RNGADBannerView').Commands.loadBanner,
       null
     );
   }
@@ -54,13 +60,13 @@ class AdMobBanner extends Component {
         style={[this.props.style, this.state.style]}
         onSizeChange={this.handleSizeChange}
         onAdFailedToLoad={this.handleAdFailedToLoad}
-        ref={el => (this._bannerView = el)}
+        ref={(el) => (this._bannerView = el)}
       />
     );
   }
 }
 
-AdMobBanner.simulatorId = "SIMULATOR";
+AdMobBanner.simulatorId = 'SIMULATOR';
 
 AdMobBanner.propTypes = {
   ...ViewPropTypes,
@@ -104,6 +110,6 @@ AdMobBanner.propTypes = {
   npa: bool,
 };
 
-const RNGADBannerView = requireNativeComponent("RNGADBannerView", AdMobBanner);
+const RNGADBannerView = requireNativeComponent('RNGADBannerView', AdMobBanner);
 
 export default AdMobBanner;
