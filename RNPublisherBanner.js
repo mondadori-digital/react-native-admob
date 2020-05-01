@@ -5,7 +5,7 @@ import {
   findNodeHandle,
   ViewPropTypes,
 } from 'react-native';
-import { string, func, arrayOf, bool } from 'prop-types';
+import { string, func, arrayOf, bool, object } from 'prop-types';
 
 import { createErrorFromErrorData } from './utils';
 
@@ -123,6 +123,7 @@ PublisherBanner.propTypes = {
   onAppEvent: func,
 
   npa: bool,
+  location: object,
 };
 
 const RNDFPBannerView = requireNativeComponent(

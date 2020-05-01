@@ -1,12 +1,15 @@
 package com.sbugert.rnadmob;
 
+import android.util.Log;
 import android.content.Context;
 import android.support.annotation.Nullable;
 import android.view.View;
 import android.os.Bundle;
+import android.location.Location;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableNativeArray;
@@ -37,6 +40,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
     String adUnitID;
     AdSize adSize;
     boolean npa;
+    ReadableMap location;
 
     public ReactPublisherAdView(final Context context) {
         super(context);
@@ -158,10 +162,18 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
                 adRequestBuilder.addTestDevice(testDevice);
             }
         }
+        
         if (npa) {
             Bundle extras = new Bundle();
             extras.putString("npa", "1");
             adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
+        }
+        if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
+            Location advLocation = new Location("");
+            advLocation.setLatitude(location.getDouble("latitude"));
+            advLocation.setLongitude(location.getDouble("longitude"));
+
+            adRequestBuilder.setLocation(advLocation);
         }
 
         PublisherAdRequest adRequest = adRequestBuilder.build();
@@ -184,6 +196,10 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
 
     public void setNpa(boolean npa) {
         this.npa = npa;
+    }
+
+    public void setLocation(ReadableMap location) {
+        this.location = location;
     }
 
     public void setAdSize(AdSize adSize) {
@@ -212,6 +228,7 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     public static final String PROP_AD_UNIT_ID = "adUnitID";
     public static final String PROP_TEST_DEVICES = "testDevices";
     public static final String PROP_NPA = "npa";
+    public static final String PROP_LOCATION = "location";
 
     public static final String EVENT_SIZE_CHANGE = "onSizeChange";
     public static final String EVENT_AD_LOADED = "onAdLoaded";
@@ -293,6 +310,11 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     @ReactProp(name = PROP_NPA)
     public void setPropNpa(final ReactPublisherAdView view, final boolean npa) {
         view.setNpa(npa);
+    }
+
+    @ReactProp(name = PROP_LOCATION)
+    public void setPropLocation(final ReactPublisherAdView view, final ReadableMap location) {
+        view.setLocation(location);
     }
 
     private AdSize getAdSizeFromString(String adSize) {

@@ -4,9 +4,11 @@ import android.content.Context;
 import android.support.annotation.Nullable;
 import android.view.View;
 import android.os.Bundle;
+import android.location.Location;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableNativeArray;
@@ -35,6 +37,7 @@ class ReactAdView extends ReactViewGroup {
     String[] testDevices;
     AdSize adSize;
     boolean npa;
+    ReadableMap location;
 
     public ReactAdView(final Context context) {
         super(context);
@@ -144,6 +147,15 @@ class ReactAdView extends ReactViewGroup {
             extras.putString("npa", "1");
             adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
         }
+
+        if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
+            Location advLocation = new Location("");
+            advLocation.setLatitude(location.getDouble("latitude"));
+            advLocation.setLongitude(location.getDouble("longitude"));
+
+            adRequestBuilder.setLocation(advLocation);
+        }
+
         AdRequest adRequest = adRequestBuilder.build();
         this.adView.loadAd(adRequest);
     }
@@ -166,6 +178,10 @@ class ReactAdView extends ReactViewGroup {
         this.npa = npa;
     }
 
+    public void setLocation(ReadableMap location) {
+        this.location = location;
+    }
+
     public void setAdSize(AdSize adSize) {
         this.adSize = adSize;
         this.adView.setAdSize(adSize);
@@ -180,6 +196,7 @@ public class RNAdMobBannerViewManager extends ViewGroupManager<ReactAdView> {
     public static final String PROP_AD_UNIT_ID = "adUnitID";
     public static final String PROP_TEST_DEVICES = "testDevices";
     public static final String PROP_NPA = "npa";
+    public static final String PROP_LOCATION = "location";
 
     public static final String EVENT_SIZE_CHANGE = "onSizeChange";
     public static final String EVENT_AD_LOADED = "onAdLoaded";
@@ -245,6 +262,11 @@ public class RNAdMobBannerViewManager extends ViewGroupManager<ReactAdView> {
     @ReactProp(name = PROP_NPA)
     public void setPropNpa(final ReactAdView view, final boolean npa) {
         view.setNpa(npa);
+    }
+
+    @ReactProp(name = PROP_LOCATION)
+    public void setPropLocation(final ReactAdView view, final ReadableMap location) {
+        view.setLocation(location);
     }
 
     private AdSize getAdSizeFromString(String adSize) {

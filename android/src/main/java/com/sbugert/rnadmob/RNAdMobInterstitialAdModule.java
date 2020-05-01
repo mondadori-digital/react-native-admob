@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.support.annotation.Nullable;
 import android.os.Bundle;
+import android.location.Location;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -13,6 +14,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableNativeArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
@@ -40,6 +42,7 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
     AdListener adListener;
     Map<String, InterstitialAd> mInterstitialAds = new HashMap<String, InterstitialAd>();
     boolean npa;
+    ReadableMap location;
 
     private Promise mRequestAdPromise;
     private final ReactApplicationContext mReactApplicationContext;
@@ -124,7 +127,7 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
         // already current
         if( mInterstitialAd.getAdUnitId() == adUnitID ){
             return;
-        }	        }
+        }
 
         // check for existing interstitial matching adUnitID, 
         final InterstitialAd interstitialAd = mInterstitialAds.get(adUnitID);
@@ -161,6 +164,11 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void setLocation(ReadableMap location) {
+        this.location = location;
+    }
+
+    @ReactMethod
     public void requestAd(final Promise promise) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
@@ -184,6 +192,15 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
                         extras.putString("npa", "1");
                         adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
                     }
+
+                    if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
+                        Location advLocation = new Location("");
+                        advLocation.setLatitude(location.getDouble("latitude"));
+                        advLocation.setLongitude(location.getDouble("longitude"));
+            
+                        adRequestBuilder.setLocation(advLocation);
+                    }
+
                     AdRequest adRequest = adRequestBuilder.build();
                     mInterstitialAd.loadAd(adRequest);
                 }

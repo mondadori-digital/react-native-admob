@@ -62,6 +62,13 @@
         extras.additionalParameters = @{@"npa": @"1"};
         [request registerAdNetworkExtras:extras];
     }
+     
+    // localizzazione
+    if (self.location) {
+        [request setLocationWithLatitude:[self.location[@"latitude"] doubleValue]
+        longitude:[self.location[@"longitude"] doubleValue]
+        accuracy:[self.location[@"accuracy"] doubleValue]];
+    }
     
     request.testDevices = _testDevices;
     [_bannerView loadRequest:request];

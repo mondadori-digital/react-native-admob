@@ -23,6 +23,7 @@ static NSString *const kEventAdLeftApplication = @"interstitialAdLeftApplication
     RCTPromiseRejectBlock _requestAdReject;
     BOOL hasListeners;
     BOOL _npa;
+    NSDictionary *_location;
 }
 
 - (dispatch_queue_t)methodQueue
@@ -65,6 +66,11 @@ RCT_EXPORT_METHOD(setNpa:(BOOL *)npa)
     _npa = npa;
 }
 
+RCT_EXPORT_METHOD(setLocation:(NSDictionary *)location)
+{
+    _location = location;
+}
+
 RCT_EXPORT_METHOD(requestAd:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     _requestAdResolve = nil;
@@ -84,6 +90,13 @@ RCT_EXPORT_METHOD(requestAd:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
             GADExtras *extras = [[GADExtras alloc] init];
             extras.additionalParameters = @{@"npa": @"1"};
             [request registerAdNetworkExtras:extras];
+        }
+
+        // localizzazione
+        if (_location) {
+            [request setLocationWithLatitude:[_location[@"latitude"] doubleValue]
+            longitude:[_location[@"longitude"] doubleValue]
+            accuracy:[_location[@"accuracy"] doubleValue]];
         }
         
         request.testDevices = _testDevices;
