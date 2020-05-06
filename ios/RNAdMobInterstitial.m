@@ -148,6 +148,7 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
         NSDictionary *jsError = RCTJSErrorFromCodeMessageAndNSError(@"E_AD_REQUEST_FAILED", error.localizedDescription, error);
         [self sendEventWithName:kEventAdFailedToLoad body:jsError];
     }
+    _interstitial = nil;
     _requestAdReject(@"E_AD_REQUEST_FAILED", error.localizedDescription, error);
 }
 
@@ -163,6 +164,7 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
     if (hasListeners){
         [self sendEventWithName:kEventAdFailedToOpen body:nil];
     }
+    _interstitial = nil;
 }
 
 - (void)interstitialWillDismissScreen:(__unused GADInterstitial *)ad
