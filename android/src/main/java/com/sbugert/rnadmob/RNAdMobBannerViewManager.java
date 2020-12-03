@@ -45,7 +45,10 @@ class ReactAdView extends ReactViewGroup {
     }
 
     private void createAdView() {
-        if (this.adView != null) this.adView.destroy();
+        if (this.adView != null) {
+            this.removeViewAt(0);
+            this.adView.destroy();
+        }
 
         final Context context = getContext();
         this.adView = new AdView(context);

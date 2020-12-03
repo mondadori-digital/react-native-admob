@@ -24,6 +24,11 @@ class PublisherBanner extends Component {
     this.loadBanner();
   }
 
+  shouldComponentUpdate(nextProps) {
+    if (nextProps.adUnitID !== this.props.adUnitID) return true;
+    return false;
+  }
+
   componentDidUpdate(prevProps, prevState) {
     if (prevProps.adUnitID !== this.props.adUnitID) {
       this.loadBanner();

@@ -48,7 +48,10 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
     }
 
     private void createAdView() {
-        if (this.adView != null) this.adView.destroy();
+        if (this.adView != null) {
+            this.removeViewAt(0);
+            this.adView.destroy();
+        }
 
         final Context context = getContext();
         this.adView = new PublisherAdView(context);
