@@ -127,8 +127,12 @@ PublisherBanner.propTypes = {
   onAdLeftApplication: func,
   onAppEvent: func,
 
+  /*
+   * Additional params
+   */
   npa: bool,
   location: object,
+  amazonSlotUUID: string,
 };
 
 const RNDFPBannerView = requireNativeComponent(

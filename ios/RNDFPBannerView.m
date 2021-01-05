@@ -16,6 +16,7 @@
 @implementation RNDFPBannerView
 {
     DFPBannerView  *_bannerView;
+    DFPRequest *request;
 }
 
 - (void)dealloc
@@ -53,8 +54,20 @@
 #pragma clang diagnostic pop
 
 - (void)loadBanner {
+    NSLog(@"DTB - andSlotUUID:%@", self.amazonSlotUUID);
+    if (self.amazonSlotUUID) {
+        // AMAZON request
+        DTBAdSize *size = [[DTBAdSize alloc] initBannerAdSizeWithWidth:_bannerView.frame.size.width height:_bannerView.frame.size.height andSlotUUID:self.amazonSlotUUID];
+        DTBAdLoader *adLoader = [DTBAdLoader new];
+        [adLoader setSizes:size, nil];
+        [adLoader loadAd:self];
+    } else {
+        [self requestBanner];
+    }
+}
+
+- (void)requestBanner {
     DFPRequest *request = [DFPRequest request];
-    // GADRequest *request = [GADRequest request];
     
     // adv consent
     if (self.npa) {
@@ -71,6 +84,20 @@
     }
     
     request.testDevices = _testDevices;
+    [_bannerView loadRequest:request];
+}
+
+#pragma mark - <DTBAdCallback>
+- (void)onFailure: (DTBAdError)error {
+    NSLog(@"DTB - Failed to load ad :(");
+    [self requestBanner];
+}
+
+- (void)onSuccess: (DTBAdResponse *)adResponse {
+    // Add APS Keywords.
+    NSLog(@"DTB - Loaded :)");
+    DFPRequest *request = [DFPRequest request];
+    request.customTargeting = adResponse.customTargeting;
     [_bannerView loadRequest:request];
 }
 

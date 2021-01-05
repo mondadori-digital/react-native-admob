@@ -16,8 +16,9 @@ static NSString *const kEventAdLeftApplication = @"interstitialAdLeftApplication
 
 @implementation RNAdMobInterstitial
 {
-    GADInterstitial  *_interstitial;
+    DFPInterstitial  *_interstitial;
     NSString *_adUnitID;
+    NSString *_amazonSlotUUID;
     NSArray *_testDevices;
     RCTPromiseResolveBlock _requestAdResolve;
     RCTPromiseRejectBlock _requestAdReject;
@@ -51,9 +52,10 @@ RCT_EXPORT_MODULE();
 
 #pragma mark exported methods
 
-RCT_EXPORT_METHOD(setAdUnitID:(NSString *)adUnitID)
+RCT_EXPORT_METHOD(setAdUnitID:(NSString *)adUnitID amazonSlotUUID:(NSString *)amazonSlotUUID)
 {
     _adUnitID = adUnitID;
+    _amazonSlotUUID = amazonSlotUUID;
 }
 
 RCT_EXPORT_METHOD(setTestDevices:(NSArray *)testDevices)
@@ -80,27 +82,16 @@ RCT_EXPORT_METHOD(requestAd:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
         _requestAdResolve = resolve;
         _requestAdReject = reject;
 
-        _interstitial = [[GADInterstitial alloc] initWithAdUnitID:_adUnitID];
-        _interstitial.delegate = self;
-
-        GADRequest *request = [GADRequest request];
-        
-        // adv consent
-        if (_npa) {
-            GADExtras *extras = [[GADExtras alloc] init];
-            extras.additionalParameters = @{@"npa": @"1"};
-            [request registerAdNetworkExtras:extras];
+        //NSLog(@"DTB - andSlotUUID:%@", self.amazonSlotUUID);
+        // AMAZON request
+        if (_amazonSlotUUID) {
+            DTBAdSize *size = [[DTBAdSize alloc] initInterstitialAdSizeWithSlotUUID:_amazonSlotUUID];
+            DTBAdLoader *adLoader = [DTBAdLoader new];
+            [adLoader setSizes:size, nil];
+            [adLoader loadAd:self];
+        } else {
+            [self requestInterstitial];
         }
-
-        // localizzazione
-        if (_location) {
-            [request setLocationWithLatitude:[_location[@"latitude"] doubleValue]
-            longitude:[_location[@"longitude"] doubleValue]
-            accuracy:[_location[@"accuracy"] doubleValue]];
-        }
-        
-        request.testDevices = _testDevices;
-        [_interstitial loadRequest:request];
     } else {
         reject(@"E_AD_ALREADY_LOADED", @"Ad is already loaded.", nil);
     }
@@ -132,9 +123,52 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
     hasListeners = NO;
 }
 
-#pragma mark GADInterstitialDelegate
+- (void)requestInterstitial {
+    _interstitial = [[DFPInterstitial alloc] initWithAdUnitID:_adUnitID];
+    _interstitial.delegate = self;
 
-- (void)interstitialDidReceiveAd:(__unused GADInterstitial *)ad
+    DFPRequest *request = [DFPRequest request];
+    
+    // adv consent
+    if (_npa) {
+        GADExtras *extras = [[GADExtras alloc] init];
+        extras.additionalParameters = @{@"npa": @"1"};
+        [request registerAdNetworkExtras:extras];
+    }
+
+    // localizzazione
+    if (_location) {
+        [request setLocationWithLatitude:[_location[@"latitude"] doubleValue]
+        longitude:[_location[@"longitude"] doubleValue]
+        accuracy:[_location[@"accuracy"] doubleValue]];
+    }
+    
+    request.testDevices = _testDevices;
+    [_interstitial loadRequest:request];
+}
+
+#pragma mark - <DTBAdCallback>
+- (void)onFailure: (DTBAdError)error {
+    NSLog(@"DBT - Interstitial Failed to load ad :(");
+    [self requestInterstitial];
+}
+ 
+- (void)onSuccess: (DTBAdResponse *)adResponse {
+    NSLog(@"DTB - Interstitial Loaded :)");
+    // Code from Google Ad Manager to set up Google Ad Manager's ad view.
+    _interstitial = [[DFPInterstitial alloc] initWithAdUnitID:_adUnitID];
+    _interstitial.delegate = self;
+
+    DFPRequest *request = [DFPRequest request];
+ 
+    // Add APS Keywords.
+    request.customTargeting = adResponse.customTargeting;
+    [_interstitial loadRequest:request];
+}
+
+#pragma mark DFPInterstitialDelegate
+
+- (void)interstitialDidReceiveAd:(__unused DFPInterstitial *)ad
 {
     if (hasListeners) {
         [self sendEventWithName:kEventAdLoaded body:nil];
@@ -142,7 +176,7 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
     _requestAdResolve(nil);
 }
 
-- (void)interstitial:(__unused GADInterstitial *)interstitial didFailToReceiveAdWithError:(GADRequestError *)error
+- (void)interstitial:(__unused DFPInterstitial *)interstitial didFailToReceiveAdWithError:(GADRequestError *)error
 {
     if (hasListeners) {
         NSDictionary *jsError = RCTJSErrorFromCodeMessageAndNSError(@"E_AD_REQUEST_FAILED", error.localizedDescription, error);
@@ -152,14 +186,14 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
     _requestAdReject(@"E_AD_REQUEST_FAILED", error.localizedDescription, error);
 }
 
-- (void)interstitialWillPresentScreen:(__unused GADInterstitial *)ad
+- (void)interstitialWillPresentScreen:(__unused DFPInterstitial *)ad
 {
     if (hasListeners){
         [self sendEventWithName:kEventAdOpened body:nil];
     }
 }
 
-- (void)interstitialDidFailToPresentScreen:(__unused GADInterstitial *)ad
+- (void)interstitialDidFailToPresentScreen:(__unused DFPInterstitial *)ad
 {
     if (hasListeners){
         [self sendEventWithName:kEventAdFailedToOpen body:nil];
@@ -167,14 +201,14 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
     _interstitial = nil;
 }
 
-- (void)interstitialWillDismissScreen:(__unused GADInterstitial *)ad
+- (void)interstitialWillDismissScreen:(__unused DFPInterstitial *)ad
 {
     if (hasListeners) {
         [self sendEventWithName:kEventAdClosed body:nil];
     }
 }
 
-- (void)interstitialWillLeaveApplication:(__unused GADInterstitial *)ad
+- (void)interstitialWillLeaveApplication:(__unused DFPInterstitial *)ad
 {
     if (hasListeners) {
         [self sendEventWithName:kEventAdLeftApplication body:nil];

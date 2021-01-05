@@ -2,9 +2,10 @@ package com.sbugert.rnadmob;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.os.Bundle;
 import android.location.Location;
+import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -20,8 +21,10 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.InterstitialAd;
+import com.google.android.gms.ads.doubleclick.PublisherAdRequest;
+import com.google.android.gms.ads.doubleclick.PublisherInterstitialAd;
 import com.google.ads.mediation.admob.AdMobAdapter;
+import com.amazon.device.ads.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,12 +40,13 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
     public static final String EVENT_AD_CLOSED = "interstitialAdClosed";
     public static final String EVENT_AD_LEFT_APPLICATION = "interstitialAdLeftApplication";
 
-    InterstitialAd mInterstitialAd;
+    PublisherInterstitialAd mInterstitialAd;
     String[] testDevices;
     AdListener adListener;
-    Map<String, InterstitialAd> mInterstitialAds = new HashMap<String, InterstitialAd>();
+    Map<String, PublisherInterstitialAd> mInterstitialAds = new HashMap<String, PublisherInterstitialAd>();
     boolean npa;
     ReadableMap location;
+    String amazonSlotUUID;
 
     private Promise mRequestAdPromise;
     private final ReactApplicationContext mReactApplicationContext;
@@ -54,7 +58,7 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
 
     public RNAdMobInterstitialAdModule(ReactApplicationContext reactContext) {
         super(reactContext);
-        mInterstitialAd = new InterstitialAd(reactContext);
+        mInterstitialAd = new PublisherInterstitialAd(reactContext);
         mReactApplicationContext = reactContext;
 
         adListener = new AdListener() {
@@ -67,19 +71,19 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
                 String errorString = "ERROR_UNKNOWN";
                 String errorMessage = "Unknown error";
                 switch (errorCode) {
-                    case AdRequest.ERROR_CODE_INTERNAL_ERROR:
+                    case PublisherAdRequest.ERROR_CODE_INTERNAL_ERROR:
                         errorString = "ERROR_CODE_INTERNAL_ERROR";
                         errorMessage = "Internal error, an invalid response was received from the ad server.";
                         break;
-                    case AdRequest.ERROR_CODE_INVALID_REQUEST:
+                    case PublisherAdRequest.ERROR_CODE_INVALID_REQUEST:
                         errorString = "ERROR_CODE_INVALID_REQUEST";
                         errorMessage = "Invalid ad request, possibly an incorrect ad unit ID was given.";
                         break;
-                    case AdRequest.ERROR_CODE_NETWORK_ERROR:
+                    case PublisherAdRequest.ERROR_CODE_NETWORK_ERROR:
                         errorString = "ERROR_CODE_NETWORK_ERROR";
                         errorMessage = "The ad request was unsuccessful due to network connectivity.";
                         break;
-                    case AdRequest.ERROR_CODE_NO_FILL:
+                    case PublisherAdRequest.ERROR_CODE_NO_FILL:
                         errorString = "ERROR_CODE_NO_FILL";
                         errorMessage = "The ad request was successful, but no ad was returned due to lack of ad inventory.";
                         break;
@@ -117,7 +121,10 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setAdUnitID(String adUnitID) {
+    public void setAdUnitID(String adUnitID, String amazonSlotUUID) {
+        
+        this.amazonSlotUUID = amazonSlotUUID;
+
         if (mInterstitialAd.getAdUnitId() == null) {
             mInterstitialAd.setAdUnitId(adUnitID);
             mInterstitialAds.put(adUnitID, mInterstitialAd);
@@ -130,7 +137,7 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
         }
 
         // check for existing interstitial matching adUnitID, 
-        final InterstitialAd interstitialAd = mInterstitialAds.get(adUnitID);
+        final PublisherInterstitialAd interstitialAd = mInterstitialAds.get(adUnitID);
 
         // existing found, make current
         if(interstitialAd != null ){
@@ -139,7 +146,7 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
         }
 
         // create new interstitial, store and make current
-        final InterstitialAd newInterstitialAd = new InterstitialAd(mReactApplicationContext);
+        final PublisherInterstitialAd newInterstitialAd = new PublisherInterstitialAd(mReactApplicationContext);
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
@@ -177,32 +184,78 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
                     promise.reject("E_AD_ALREADY_LOADED", "Ad is already loaded.");
                 } else {
                     mRequestAdPromise = promise;
-                    AdRequest.Builder adRequestBuilder = new AdRequest.Builder();
-                    if (testDevices != null) {
-                        for (int i = 0; i < testDevices.length; i++) {
-                            String testDevice = testDevices[i];
-                            if (testDevice == "SIMULATOR") {
-                                testDevice = AdRequest.DEVICE_ID_EMULATOR;
-                            }
-                            adRequestBuilder.addTestDevice(testDevice);
-                        }
-                    }
-                    if (npa) {
-                        Bundle extras = new Bundle();
-                        extras.putString("npa", "1");
-                        adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
-                    }
-
-                    if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
-                        Location advLocation = new Location("");
-                        advLocation.setLatitude(location.getDouble("latitude"));
-                        advLocation.setLongitude(location.getDouble("longitude"));
+                    final PublisherAdRequest.Builder adRequestBuilder = new PublisherAdRequest.Builder();
+                    
+                    if(amazonSlotUUID != null) {
+                        final DTBAdRequest loader = new DTBAdRequest();
+                        loader.setSizes(new DTBAdSize.DTBInterstitialAdSize(amazonSlotUUID));
+                        loader.loadAd(new DTBAdCallback() {
+                            @Override
+                            public void onFailure(AdError adError) {
+                                Log.e("APP", "Failed to load the interstitial ad" + adError.getMessage());
+                                if (testDevices != null) {
+                                    for (int i = 0; i < testDevices.length; i++) {
+                                        String testDevice = testDevices[i];
+                                        if (testDevice == "SIMULATOR") {
+                                            testDevice = PublisherAdRequest.DEVICE_ID_EMULATOR;
+                                        }
+                                        adRequestBuilder.addTestDevice(testDevice);
+                                    }
+                                }
+                                if (npa) {
+                                    Bundle extras = new Bundle();
+                                    extras.putString("npa", "1");
+                                    adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
+                                }
             
-                        adRequestBuilder.setLocation(advLocation);
+                                if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
+                                    Location advLocation = new Location("");
+                                    advLocation.setLatitude(location.getDouble("latitude"));
+                                    advLocation.setLongitude(location.getDouble("longitude"));
+                        
+                                    adRequestBuilder.setLocation(advLocation);
+                                }
+            
+                                PublisherAdRequest adRequest = adRequestBuilder.build();
+                                mInterstitialAd.loadAd(adRequest);
+                            }
+                        
+                            @Override
+                            public void onSuccess(DTBAdResponse dtbAdResponse) {
+                                Log.d("loadInterstitialBanner", "success");
+                                // Build Google Ad Manager request with APS keywords
+                                final PublisherAdRequest adRequest = DTBAdUtil.INSTANCE.createPublisherAdRequestBuilder(dtbAdResponse).build();
+                                mInterstitialAd.loadAd(adRequest);
+                            }
+                        });
+                    } else {
+                        Log.d("loadBanner", "amazonSlotUUID is null");
+                        if (testDevices != null) {
+                            for (int i = 0; i < testDevices.length; i++) {
+                                String testDevice = testDevices[i];
+                                if (testDevice == "SIMULATOR") {
+                                    testDevice = PublisherAdRequest.DEVICE_ID_EMULATOR;
+                                }
+                                adRequestBuilder.addTestDevice(testDevice);
+                            }
+                        }
+                        if (npa) {
+                            Bundle extras = new Bundle();
+                            extras.putString("npa", "1");
+                            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
+                        }
+    
+                        if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
+                            Location advLocation = new Location("");
+                            advLocation.setLatitude(location.getDouble("latitude"));
+                            advLocation.setLongitude(location.getDouble("longitude"));
+                
+                            adRequestBuilder.setLocation(advLocation);
+                        }
+    
+                        PublisherAdRequest adRequest = adRequestBuilder.build();
+                        mInterstitialAd.loadAd(adRequest); 
                     }
-
-                    AdRequest adRequest = adRequestBuilder.build();
-                    mInterstitialAd.loadAd(adRequest);
                 }
             }
         });

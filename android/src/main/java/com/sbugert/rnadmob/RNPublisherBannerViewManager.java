@@ -2,7 +2,7 @@ package com.sbugert.rnadmob;
 
 import android.util.Log;
 import android.content.Context;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.View;
 import android.os.Bundle;
 import android.location.Location;
@@ -26,6 +26,7 @@ import com.google.android.gms.ads.doubleclick.PublisherAdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.doubleclick.PublisherAdView;
 import com.google.ads.mediation.admob.AdMobAdapter;
+import com.amazon.device.ads.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
     String[] testDevices;
     AdSize[] validAdSizes;
     String adUnitID;
+    String amazonSlotUUID;
     AdSize adSize;
     boolean npa;
     ReadableMap location;
@@ -137,24 +139,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
                         event);
     }
 
-    public void loadBanner() {
-        ArrayList<AdSize> adSizes = new ArrayList<AdSize>();
-        if (this.adSize != null) {
-            adSizes.add(this.adSize);
-        }
-        if (this.validAdSizes != null) {
-            for (int i = 0; i < this.validAdSizes.length; i++) {
-                adSizes.add(this.validAdSizes[i]);
-            }
-        }
-
-        if (adSizes.size() == 0) {
-            adSizes.add(AdSize.BANNER);
-        }
-
-        AdSize[] adSizesArray = adSizes.toArray(new AdSize[adSizes.size()]);
-        this.adView.setAdSizes(adSizesArray);
-
+    private void loadAdManagerBanner() {
         PublisherAdRequest.Builder adRequestBuilder = new PublisherAdRequest.Builder();
         if (testDevices != null) {
             for (int i = 0; i < testDevices.length; i++) {
@@ -183,6 +168,49 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
         this.adView.loadAd(adRequest);
     }
 
+    public void loadBanner() {
+        ArrayList<AdSize> adSizes = new ArrayList<AdSize>();
+        ReactContext reactContext = (ReactContext) getContext();
+        if (this.adSize != null) {
+            adSizes.add(this.adSize);
+        }
+        if (this.validAdSizes != null) {
+            for (int i = 0; i < this.validAdSizes.length; i++) {
+                adSizes.add(this.validAdSizes[i]);
+            }
+        }
+
+        if (adSizes.size() == 0) {
+            adSizes.add(AdSize.BANNER);
+        }
+
+        AdSize[] adSizesArray = adSizes.toArray(new AdSize[adSizes.size()]);
+        this.adView.setAdSizes(adSizesArray);
+
+        // AMAZON
+        if (this.amazonSlotUUID != null) {
+            final DTBAdRequest loader = new DTBAdRequest();
+            loader.setSizes(new DTBAdSize(this.adView.getAdSize().getWidth(), this.adView.getAdSize().getHeight(), this.amazonSlotUUID));
+            loader.loadAd(new DTBAdCallback() {
+                @Override
+                public void onFailure(AdError adError) {
+                    Log.e("AdError", "Oops banner ad load has failed: " + adError.getMessage());
+                    loadAdManagerBanner();
+                }
+                @Override
+                public void onSuccess(DTBAdResponse dtbAdResponse) {
+                    Log.d("loadBanner", "success");
+                    // Build Google Ad Manager request with APS keywords
+                    final PublisherAdRequest adRequest = DTBAdUtil.INSTANCE.createPublisherAdRequestBuilder(dtbAdResponse).build();
+                    adView.loadAd(adRequest);
+                }
+            });
+        } else {
+            Log.d("loadBanner", "amazonSlotUUID is null");
+            this.loadAdManagerBanner();
+        }
+    }
+
     public void setAdUnitID(String adUnitID) {
         if (this.adUnitID != null) {
             // We can only set adUnitID once, so when it was previously set we have
@@ -191,6 +219,10 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
         }
         this.adUnitID = adUnitID;
         this.adView.setAdUnitId(adUnitID);
+    }
+
+    public void setPropAmazonSlotUUID(String amazonSlotUUID) {
+        this.amazonSlotUUID = amazonSlotUUID;
     }
 
     public void setTestDevices(String[] testDevices) {
@@ -229,6 +261,7 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     public static final String PROP_AD_SIZE = "adSize";
     public static final String PROP_VALID_AD_SIZES = "validAdSizes";
     public static final String PROP_AD_UNIT_ID = "adUnitID";
+    public static final String PROP_AMAZON_SLOT_UUID = "amazonSlotUUID";
     public static final String PROP_TEST_DEVICES = "testDevices";
     public static final String PROP_NPA = "npa";
     public static final String PROP_LOCATION = "location";
@@ -301,6 +334,11 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     @ReactProp(name = PROP_AD_UNIT_ID)
     public void setPropAdUnitID(final ReactPublisherAdView view, final String adUnitID) {
         view.setAdUnitID(adUnitID);
+    }
+
+    @ReactProp(name = PROP_AMAZON_SLOT_UUID)
+    public void setPropAmazonSlotUUID(final ReactPublisherAdView view, final String amazonSlotUUID) {
+        view.setPropAmazonSlotUUID(amazonSlotUUID);
     }
 
     @ReactProp(name = PROP_TEST_DEVICES)

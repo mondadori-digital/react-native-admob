@@ -5,6 +5,7 @@
 #endif
 
 @import GoogleMobileAds;
+#import <DTBiOSSDK/DTBiOSSDK.h>
 
 @class RCTEventDispatcher;
 
@@ -15,6 +16,7 @@
 
 @property (nonatomic) BOOL npa;
 @property (nonatomic) NSDictionary * location;
+@property (nonatomic) NSString * amazonSlotUUID;
 
 @property (nonatomic, copy) RCTBubblingEventBlock onSizeChange;
 @property (nonatomic, copy) RCTBubblingEventBlock onAppEvent;

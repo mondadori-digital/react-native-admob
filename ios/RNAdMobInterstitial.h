@@ -7,6 +7,7 @@
 #endif
 
 @import GoogleMobileAds;
+#import <DTBiOSSDK/DTBiOSSDK.h>
 
 @interface RNAdMobInterstitial : RCTEventEmitter <RCTBridgeModule, GADInterstitialDelegate>
 @end
