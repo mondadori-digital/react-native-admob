@@ -12,11 +12,13 @@
 #endif
 
 #include "RCTConvert+GADAdSize.h"
+#import <CriteoPublisherSdk/CriteoPublisherSdk.h>
+#import "RNAdConfig.h"
+
 
 @implementation RNDFPBannerView
 {
     DFPBannerView  *_bannerView;
-    DFPRequest *request;
 }
 
 - (void)dealloc
@@ -67,24 +69,34 @@
 }
 
 - (void)requestBanner {
-    DFPRequest *request = [DFPRequest request];
-    
-    // adv consent
-    if (self.npa) {
-        GADExtras *extras = [[GADExtras alloc] init];
-        extras.additionalParameters = @{@"npa": @"1"};
-        [request registerAdNetworkExtras:extras];
-    }
-     
-    // localizzazione
-    if (self.location) {
-        [request setLocationWithLatitude:[self.location[@"latitude"] doubleValue]
-        longitude:[self.location[@"longitude"] doubleValue]
-        accuracy:[self.location[@"accuracy"] doubleValue]];
-    }
-    
-    request.testDevices = _testDevices;
-    [_bannerView loadRequest:request];
+    [[Criteo sharedCriteo] loadBidForAdUnit:[RNAdConfig sharedInstance].GAM2Criteo[self.adType] responseHandler:^(CRBid *bid) {
+        NSLog(@"Criteo - adType %@", self.adType);
+        NSLog(@"Criteo - unit %@", [RNAdConfig sharedInstance].GAM2Criteo[self.adType]);
+        
+        DFPRequest *request = [DFPRequest request];
+        
+        // adv consent
+        if (self.npa) {
+            GADExtras *extras = [[GADExtras alloc] init];
+            extras.additionalParameters = @{@"npa": @"1"};
+            [request registerAdNetworkExtras:extras];
+        }
+        
+        // localizzazione
+        if (self.location) {
+            [request setLocationWithLatitude:[self.location[@"latitude"] doubleValue]
+            longitude:[self.location[@"longitude"] doubleValue]
+            accuracy:[self.location[@"accuracy"] doubleValue]];
+        }
+        
+        // add Criteo bids into Ad Manager request
+        if (bid != nil) {
+            [[Criteo sharedCriteo] enrichAdObject:request withBid:bid];
+        }
+        
+        request.testDevices = _testDevices;
+        [_bannerView loadRequest:request];
+    }];
 }
 
 #pragma mark - <DTBAdCallback>
@@ -96,9 +108,21 @@
 - (void)onSuccess: (DTBAdResponse *)adResponse {
     // Add APS Keywords.
     NSLog(@"DTB - Loaded :)");
-    DFPRequest *request = [DFPRequest request];
-    request.customTargeting = adResponse.customTargeting;
-    [_bannerView loadRequest:request];
+    [[Criteo sharedCriteo] loadBidForAdUnit:[RNAdConfig sharedInstance].GAM2Criteo[self.adType] responseHandler:^(CRBid *bid) {
+        NSLog(@"Criteo - adType %@", self.adType);
+        NSLog(@"Criteo - unit %@", [RNAdConfig sharedInstance].GAM2Criteo[self.adType]);
+        DFPRequest *request = [DFPRequest request];
+        request.customTargeting = adResponse.customTargeting;
+        if (bid != nil) {
+            // add Criteo bids into Ad Manager request
+            [[Criteo sharedCriteo] enrichAdObject:request withBid:bid];
+        }
+        // add Criteo bids into Ad Manager request
+        if (bid != nil) {
+            [[Criteo sharedCriteo] enrichAdObject:request withBid:bid];
+        }
+        [_bannerView loadRequest:request];
+    }];
 }
 
 - (void)setValidAdSizes:(NSArray *)adSizes

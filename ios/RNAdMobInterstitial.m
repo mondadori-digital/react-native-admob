@@ -7,6 +7,9 @@
 #import "RCTUtils.h"
 #endif
 
+#import <CriteoPublisherSdk/CriteoPublisherSdk.h>
+#import "RNAdConfig.h"
+
 static NSString *const kEventAdLoaded = @"interstitialAdLoaded";
 static NSString *const kEventAdFailedToLoad = @"interstitialAdFailedToLoad";
 static NSString *const kEventAdOpened = @"interstitialAdOpened";
@@ -127,24 +130,34 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
     _interstitial = [[DFPInterstitial alloc] initWithAdUnitID:_adUnitID];
     _interstitial.delegate = self;
 
-    DFPRequest *request = [DFPRequest request];
-    
-    // adv consent
-    if (_npa) {
-        GADExtras *extras = [[GADExtras alloc] init];
-        extras.additionalParameters = @{@"npa": @"1"};
-        [request registerAdNetworkExtras:extras];
-    }
+    [[Criteo sharedCriteo] loadBidForAdUnit:[RNAdConfig sharedInstance].GAM2Criteo[@"interstitial"] responseHandler:^(CRBid *bid) {
 
-    // localizzazione
-    if (_location) {
-        [request setLocationWithLatitude:[_location[@"latitude"] doubleValue]
-        longitude:[_location[@"longitude"] doubleValue]
-        accuracy:[_location[@"accuracy"] doubleValue]];
-    }
-    
-    request.testDevices = _testDevices;
-    [_interstitial loadRequest:request];
+        NSLog(@"Criteo - unit %@", [RNAdConfig sharedInstance].GAM2Criteo[@"interstitial"]);
+
+        DFPRequest *request = [DFPRequest request];
+        
+        // adv consent
+        if (_npa) {
+            GADExtras *extras = [[GADExtras alloc] init];
+            extras.additionalParameters = @{@"npa": @"1"};
+            [request registerAdNetworkExtras:extras];
+        }
+
+        // localizzazione
+        if (_location) {
+            [request setLocationWithLatitude:[_location[@"latitude"] doubleValue]
+            longitude:[_location[@"longitude"] doubleValue]
+            accuracy:[_location[@"accuracy"] doubleValue]];
+        }
+        
+        if (bid != nil) {
+            // add Criteo bids into Ad Manager request
+            [[Criteo sharedCriteo] enrichAdObject:request withBid:bid];
+        }
+
+        request.testDevices = _testDevices;
+        [_interstitial loadRequest:request];
+    }];
 }
 
 #pragma mark - <DTBAdCallback>
@@ -158,12 +171,23 @@ RCT_EXPORT_METHOD(isReady:(RCTResponseSenderBlock)callback)
     // Code from Google Ad Manager to set up Google Ad Manager's ad view.
     _interstitial = [[DFPInterstitial alloc] initWithAdUnitID:_adUnitID];
     _interstitial.delegate = self;
+    
+    [[Criteo sharedCriteo] loadBidForAdUnit:[RNAdConfig sharedInstance].GAM2Criteo[@"interstitial"] responseHandler:^(CRBid *bid) {
+        
+        NSLog(@"Criteo - unit %@", [RNAdConfig sharedInstance].GAM2Criteo[@"interstitial"]);
 
-    DFPRequest *request = [DFPRequest request];
- 
-    // Add APS Keywords.
-    request.customTargeting = adResponse.customTargeting;
-    [_interstitial loadRequest:request];
+        DFPRequest *request = [DFPRequest request];
+        
+        // Add APS Keywords.
+        request.customTargeting = adResponse.customTargeting;
+
+        if (bid != nil) {
+            // add Criteo bids into Ad Manager request
+            [[Criteo sharedCriteo] enrichAdObject:request withBid:bid];
+        }
+
+        [_interstitial loadRequest:request];
+    }];
 }
 
 #pragma mark DFPInterstitialDelegate

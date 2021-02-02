@@ -133,6 +133,7 @@ PublisherBanner.propTypes = {
   npa: bool,
   location: object,
   amazonSlotUUID: string,
+  adType: string,
 };
 
 const RNDFPBannerView = requireNativeComponent(

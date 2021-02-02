@@ -17,6 +17,7 @@
 @property (nonatomic) BOOL npa;
 @property (nonatomic) NSDictionary * location;
 @property (nonatomic) NSString * amazonSlotUUID;
+@property (nonatomic) NSString * adType;
 
 @property (nonatomic, copy) RCTBubblingEventBlock onSizeChange;
 @property (nonatomic, copy) RCTBubblingEventBlock onAppEvent;

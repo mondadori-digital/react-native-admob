@@ -26,6 +26,11 @@ import com.google.android.gms.ads.doubleclick.PublisherInterstitialAd;
 import com.google.ads.mediation.admob.AdMobAdapter;
 import com.amazon.device.ads.*;
 
+import com.criteo.publisher.Bid;
+import com.criteo.publisher.BidResponseListener;
+import com.criteo.publisher.Criteo;
+import com.criteo.publisher.model.InterstitialAdUnit;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -175,6 +180,40 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
         this.location = location;
     }
 
+    private void loadAdManagerBanner(@Nullable Bid bid) {
+        final PublisherAdRequest.Builder adRequestBuilder = new PublisherAdRequest.Builder();
+        if (testDevices != null) {
+            for (int i = 0; i < testDevices.length; i++) {
+                String testDevice = testDevices[i];
+                if (testDevice == "SIMULATOR") {
+                    testDevice = PublisherAdRequest.DEVICE_ID_EMULATOR;
+                }
+                adRequestBuilder.addTestDevice(testDevice);
+            }
+        }
+        if (npa) {
+            Bundle extras = new Bundle();
+            extras.putString("npa", "1");
+            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
+        }
+
+        if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
+            Location advLocation = new Location("");
+            advLocation.setLatitude(location.getDouble("latitude"));
+            advLocation.setLongitude(location.getDouble("longitude"));
+
+            adRequestBuilder.setLocation(advLocation);
+        }
+
+        if (bid != null) {
+            Criteo.getInstance().enrichAdObjectWithBid(adRequestBuilder, bid);
+        }
+
+        Log.d("loadInterstitialBanner", "load AdManager Interstitial");
+        PublisherAdRequest adRequest = adRequestBuilder.build();
+        mInterstitialAd.loadAd(adRequest);
+    }
+
     @ReactMethod
     public void requestAd(final Promise promise) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
@@ -184,78 +223,42 @@ public class RNAdMobInterstitialAdModule extends ReactContextBaseJavaModule {
                     promise.reject("E_AD_ALREADY_LOADED", "Ad is already loaded.");
                 } else {
                     mRequestAdPromise = promise;
-                    final PublisherAdRequest.Builder adRequestBuilder = new PublisherAdRequest.Builder();
+                    // load Criteo bids
+                    InterstitialAdUnit criteoBannerAdUnit = (InterstitialAdUnit) RNAdConfig.getInstance().getGAM2Criteo().get("interstitial");
                     
-                    if(amazonSlotUUID != null) {
-                        final DTBAdRequest loader = new DTBAdRequest();
-                        loader.setSizes(new DTBAdSize.DTBInterstitialAdSize(amazonSlotUUID));
-                        loader.loadAd(new DTBAdCallback() {
-                            @Override
-                            public void onFailure(AdError adError) {
-                                Log.e("APP", "Failed to load the interstitial ad" + adError.getMessage());
-                                if (testDevices != null) {
-                                    for (int i = 0; i < testDevices.length; i++) {
-                                        String testDevice = testDevices[i];
-                                        if (testDevice == "SIMULATOR") {
-                                            testDevice = PublisherAdRequest.DEVICE_ID_EMULATOR;
-                                        }
-                                        adRequestBuilder.addTestDevice(testDevice);
+                    Criteo.getInstance().loadBid(criteoBannerAdUnit, new BidResponseListener() {
+                        @Override
+                        public void onResponse(final @Nullable Bid bid) {
+                            // AMAZON
+                            if(amazonSlotUUID != null) {
+                                final DTBAdRequest loader = new DTBAdRequest();
+                                loader.setSizes(new DTBAdSize.DTBInterstitialAdSize(amazonSlotUUID));
+                                loader.loadAd(new DTBAdCallback() {
+                                    @Override
+                                    public void onFailure(AdError adError) {
+                                        Log.e("APP", "Failed to load the interstitial ad" + adError.getMessage());
+                                        loadAdManagerBanner(bid);
                                     }
-                                }
-                                if (npa) {
-                                    Bundle extras = new Bundle();
-                                    extras.putString("npa", "1");
-                                    adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
-                                }
-            
-                                if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
-                                    Location advLocation = new Location("");
-                                    advLocation.setLatitude(location.getDouble("latitude"));
-                                    advLocation.setLongitude(location.getDouble("longitude"));
-                        
-                                    adRequestBuilder.setLocation(advLocation);
-                                }
-            
-                                PublisherAdRequest adRequest = adRequestBuilder.build();
-                                mInterstitialAd.loadAd(adRequest);
-                            }
-                        
-                            @Override
-                            public void onSuccess(DTBAdResponse dtbAdResponse) {
-                                Log.d("loadInterstitialBanner", "success");
-                                // Build Google Ad Manager request with APS keywords
-                                final PublisherAdRequest adRequest = DTBAdUtil.INSTANCE.createPublisherAdRequestBuilder(dtbAdResponse).build();
-                                mInterstitialAd.loadAd(adRequest);
-                            }
-                        });
-                    } else {
-                        Log.d("loadBanner", "amazonSlotUUID is null");
-                        if (testDevices != null) {
-                            for (int i = 0; i < testDevices.length; i++) {
-                                String testDevice = testDevices[i];
-                                if (testDevice == "SIMULATOR") {
-                                    testDevice = PublisherAdRequest.DEVICE_ID_EMULATOR;
-                                }
-                                adRequestBuilder.addTestDevice(testDevice);
+                                
+                                    @Override
+                                    public void onSuccess(DTBAdResponse dtbAdResponse) {
+                                        Log.d("loadInterstitialBanner", "success");
+                                        // Build Google Ad Manager request with APS keywords
+                                        PublisherAdRequest.Builder adRequestBuilder = DTBAdUtil.INSTANCE.createPublisherAdRequestBuilder(dtbAdResponse);
+                                        if (bid != null) {
+                                            Log.d("loadInterstitialBanner", "Criteo bid is not null");
+                                            Criteo.getInstance().enrichAdObjectWithBid(adRequestBuilder, bid);
+                                        }
+                                        final PublisherAdRequest adRequest = adRequestBuilder.build();
+                                        mInterstitialAd.loadAd(adRequest);
+                                    }
+                                });
+                            } else {
+                                Log.d("loadInterstitialBanner", "amazonSlotUUID is null");
+                                loadAdManagerBanner(bid);
                             }
                         }
-                        if (npa) {
-                            Bundle extras = new Bundle();
-                            extras.putString("npa", "1");
-                            adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
-                        }
-    
-                        if (location != null && location.hasKey("latitude") && !location.isNull("latitude") && location.hasKey("longitude") && !location.isNull("longitude")) {
-                            Location advLocation = new Location("");
-                            advLocation.setLatitude(location.getDouble("latitude"));
-                            advLocation.setLongitude(location.getDouble("longitude"));
-                
-                            adRequestBuilder.setLocation(advLocation);
-                        }
-    
-                        PublisherAdRequest adRequest = adRequestBuilder.build();
-                        mInterstitialAd.loadAd(adRequest); 
-                    }
+                    });
                 }
             }
         });

@@ -27,6 +27,10 @@ import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.doubleclick.PublisherAdView;
 import com.google.ads.mediation.admob.AdMobAdapter;
 import com.amazon.device.ads.*;
+import com.criteo.publisher.Bid;
+import com.criteo.publisher.BidResponseListener;
+import com.criteo.publisher.Criteo;
+import com.criteo.publisher.model.BannerAdUnit;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +43,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
     String[] testDevices;
     AdSize[] validAdSizes;
     String adUnitID;
+    String adType;
     String amazonSlotUUID;
     AdSize adSize;
     boolean npa;
@@ -139,7 +144,7 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
                         event);
     }
 
-    private void loadAdManagerBanner() {
+    private void loadAdManagerBanner(@Nullable Bid bid) {
         PublisherAdRequest.Builder adRequestBuilder = new PublisherAdRequest.Builder();
         if (testDevices != null) {
             for (int i = 0; i < testDevices.length; i++) {
@@ -164,11 +169,21 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
             adRequestBuilder.setLocation(advLocation);
         }
 
+        // Criteo
+        if (bid != null) {
+            Log.d("loadBanner", "Criteo bid is not null");
+            Criteo.getInstance().enrichAdObjectWithBid(adRequestBuilder, bid);
+        }
+
         PublisherAdRequest adRequest = adRequestBuilder.build();
         this.adView.loadAd(adRequest);
     }
 
     public void loadBanner() {
+        
+        BannerAdUnit criteoBannerAdUnit = (BannerAdUnit) RNAdConfig.getInstance().getGAM2Criteo().get(this.adType);
+        Log.d("loadBanner", "criteoBanner: " + this.adType);
+
         ArrayList<AdSize> adSizes = new ArrayList<AdSize>();
         ReactContext reactContext = (ReactContext) getContext();
         if (this.adSize != null) {
@@ -187,28 +202,40 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
         AdSize[] adSizesArray = adSizes.toArray(new AdSize[adSizes.size()]);
         this.adView.setAdSizes(adSizesArray);
 
-        // AMAZON
-        if (this.amazonSlotUUID != null) {
-            final DTBAdRequest loader = new DTBAdRequest();
-            loader.setSizes(new DTBAdSize(this.adView.getAdSize().getWidth(), this.adView.getAdSize().getHeight(), this.amazonSlotUUID));
-            loader.loadAd(new DTBAdCallback() {
-                @Override
-                public void onFailure(AdError adError) {
-                    Log.e("AdError", "Oops banner ad load has failed: " + adError.getMessage());
-                    loadAdManagerBanner();
+        // load Criteo bids
+        Criteo.getInstance().loadBid(criteoBannerAdUnit, new BidResponseListener() {
+            @Override
+            public void onResponse(final @Nullable Bid bid) {
+                // AMAZON
+                if (amazonSlotUUID != null) {
+                    Log.d("loadBanner", "amazonSlotUUID: " + amazonSlotUUID);
+                    final DTBAdRequest loader = new DTBAdRequest();
+                    loader.setSizes(new DTBAdSize(adView.getAdSize().getWidth(), adView.getAdSize().getHeight(), amazonSlotUUID));
+                    loader.loadAd(new DTBAdCallback() {
+                        @Override
+                        public void onFailure(AdError adError) {
+                            Log.e("AdError", "Oops banner ad load has failed: " + adError.getMessage());
+                            loadAdManagerBanner(bid);
+                        }
+                        @Override
+                        public void onSuccess(DTBAdResponse dtbAdResponse) {
+                            Log.d("loadBanner", "success");
+                            // Build Google Ad Manager request with APS keywords
+                            PublisherAdRequest.Builder adRequestBuilder = DTBAdUtil.INSTANCE.createPublisherAdRequestBuilder(dtbAdResponse);
+                            if (bid != null) {
+                                Log.d("loadBanner", "Criteo bid is not null");
+                                Criteo.getInstance().enrichAdObjectWithBid(adRequestBuilder, bid);
+                            }
+                            final PublisherAdRequest adRequest = adRequestBuilder.build();
+                            adView.loadAd(adRequest);
+                        }
+                    });
+                } else {
+                    Log.d("loadBanner", "amazonSlotUUID is null");
+                    loadAdManagerBanner(bid);
                 }
-                @Override
-                public void onSuccess(DTBAdResponse dtbAdResponse) {
-                    Log.d("loadBanner", "success");
-                    // Build Google Ad Manager request with APS keywords
-                    final PublisherAdRequest adRequest = DTBAdUtil.INSTANCE.createPublisherAdRequestBuilder(dtbAdResponse).build();
-                    adView.loadAd(adRequest);
-                }
-            });
-        } else {
-            Log.d("loadBanner", "amazonSlotUUID is null");
-            this.loadAdManagerBanner();
-        }
+            }
+        });
     }
 
     public void setAdUnitID(String adUnitID) {
@@ -219,6 +246,10 @@ class ReactPublisherAdView extends ReactViewGroup implements AppEventListener {
         }
         this.adUnitID = adUnitID;
         this.adView.setAdUnitId(adUnitID);
+    }
+
+    public void setAdType(String adType) {
+        this.adType = adType;
     }
 
     public void setPropAmazonSlotUUID(String amazonSlotUUID) {
@@ -261,6 +292,7 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     public static final String PROP_AD_SIZE = "adSize";
     public static final String PROP_VALID_AD_SIZES = "validAdSizes";
     public static final String PROP_AD_UNIT_ID = "adUnitID";
+    public static final String PROP_AD_TYPE = "adType";
     public static final String PROP_AMAZON_SLOT_UUID = "amazonSlotUUID";
     public static final String PROP_TEST_DEVICES = "testDevices";
     public static final String PROP_NPA = "npa";
@@ -334,6 +366,11 @@ public class RNPublisherBannerViewManager extends ViewGroupManager<ReactPublishe
     @ReactProp(name = PROP_AD_UNIT_ID)
     public void setPropAdUnitID(final ReactPublisherAdView view, final String adUnitID) {
         view.setAdUnitID(adUnitID);
+    }
+
+    @ReactProp(name = PROP_AD_TYPE)
+    public void setPropAdType(final ReactPublisherAdView view, final String adType) {
+        view.setAdType(adType);
     }
 
     @ReactProp(name = PROP_AMAZON_SLOT_UUID)
